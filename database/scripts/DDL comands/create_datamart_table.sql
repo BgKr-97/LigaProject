@@ -1,0 +1,25 @@
+CREATE TABLE IF NOT EXISTS mart.data_mart
+(
+    client_id         INTEGER              NOT NULL,
+    fio               TEXT                 NOT NULL,
+    passport          TEXT                 NOT NULL,
+    gender            gender_enum          NOT NULL,
+    birth_date        DATE                 NOT NULL,
+    education         education_enum       NOT NULL,
+    count_of_children SMALLINT,
+    job_type          employment_enum      NOT NULL,
+    region            TEXT,
+    family_status     marital_enum,
+    income            INTEGER              NOT NULL,
+    loan_name         TEXT                 NOT NULL,
+    loan_amount       INTEGER              NOT NULL,
+    loan_start_date   TIMESTAMP            NOT NULL,
+    loan_end_date     TIMESTAMP            NOT NULL,
+    paid_amount       INTEGER              NOT NULL,
+    payment_number    SMALLINT             NOT NULL,
+    payment_date      TIMESTAMP            NOT NULL,
+    payment_fact_date TIMESTAMP            NOT NULL,
+    paid_fact_amount  INTEGER              NOT NULL,
+    status            BOOLEAN              not null,
+    PRIMARY KEY (client_id, loan_name, payment_number)
+);
