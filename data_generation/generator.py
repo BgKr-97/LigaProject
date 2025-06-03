@@ -175,7 +175,7 @@ class DataGenerator:
                 if num_months <= 0:
                     continue  # пропускаем, если кредит начался сегодня — нет платежей
 
-                loan_amount = random.randint(row.income * 3, row.income * 10)
+                loan_amount = random.randint(10_000, 1000_000)
                 monthly_payment = round(loan_amount / num_months)
                 loan_name = self.generate_loan_code()
 

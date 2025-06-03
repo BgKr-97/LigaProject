@@ -7,13 +7,13 @@ SELECT
     c.client_id,
     c.fio,
     c.passport,
-    c.gender,
+    c.gender::text,
     c.birth_date,
-    c.education,
+    c.education::text,
     c.count_of_children,
-    c.job_type,
+    c.job_type::text,
     c.region,
-    c.family_status,
+    c.family_status::text,
     c.income,
     l.loan_name,
     l.loan_amount,
@@ -37,8 +37,7 @@ CREATE OR REPLACE VIEW vw_overdue_by_month_and_amount AS
 WITH
   -------------------------------------------------------------------------------
   -- CTE 1: loans_cte
-  --   для каждого платежа рассчитываем period (год-месяц) и bucket по сумме кредита,
-  --   а затем берём DISTINCT, чтобы каждая комбинация «договор + месяц + bucket» была в единственном экземпляре.
+  --   для каждого платежа рассчитываем period (год-месяц) и bucket по сумме кредита
   -------------------------------------------------------------------------------
   loans_cte AS (
     SELECT
@@ -47,16 +46,16 @@ WITH
       loan_amount,
       date_trunc('month', payment_date)::date AS period,
       CASE
-        WHEN loan_amount <= 50000  THEN 'До 50 000'
-        WHEN loan_amount <= 100000 THEN '50 001–100 000'
-        WHEN loan_amount <= 500000 THEN '100 001–500 000'
-        ELSE '500 001 и более'
+        WHEN loan_amount < 50000  THEN 'До 50 000'
+        WHEN loan_amount < 100000 THEN 'До 100 000'
+        WHEN loan_amount < 500000 THEN 'До 500 000'
+        ELSE 'От 500 000'
       END AS loan_amount_bucket
     FROM mart.data_mart
   ),
   -------------------------------------------------------------------------------
   -- CTE 2: overdue_cte
-  --   выбираем из loans_cte только те «договор + месяц + bucket», где in-mart-data был хотя бы один платёж с status = TRUE
+  --   выбираем из loans_cte только те «договор + месяц + bucket», где был хотя бы один платёж с status = TRUE
   -------------------------------------------------------------------------------
   overdue_cte AS (
     SELECT DISTINCT
@@ -67,8 +66,8 @@ WITH
       l.loan_amount_bucket
     FROM loans_cte AS l
     JOIN mart.data_mart AS m
-      ON m.client_id   = l.client_id
-     AND m.loan_name   = l.loan_name
+      ON m.client_id = l.client_id
+     AND m.loan_name = l.loan_name
      AND date_trunc('month', m.payment_date)::date = l.period
      AND m.status = TRUE
   ),
@@ -81,8 +80,8 @@ WITH
       period,
       loan_amount_bucket,
       COUNT(DISTINCT client_id || '|' || loan_name) AS total_loans,
-      COUNT(DISTINCT client_id)                     AS total_clients,      -- (опционально)
-      SUM(loan_amount)                              AS sum_issued_loans
+      COUNT(DISTINCT client_id) AS total_clients,
+      SUM(loan_amount) AS sum_issued_loans
     FROM loans_cte
     GROUP BY
       period,
@@ -98,12 +97,12 @@ WITH
     SELECT
       o.period,
       o.loan_amount_bucket,
-      COUNT(DISTINCT o.client_id || '|' || o.loan_name)   AS total_overdue_loans,
+      COUNT(DISTINCT o.client_id || '|' || o.loan_name) AS total_overdue_loans,
       SUM(m.paid_fact_amount) FILTER (WHERE m.status = TRUE) AS sum_overdue_payments
     FROM overdue_cte AS o
     JOIN mart.data_mart AS m
-      ON m.client_id   = o.client_id
-     AND m.loan_name   = o.loan_name
+      ON m.client_id = o.client_id
+     AND m.loan_name = o.loan_name
      AND date_trunc('month', m.payment_date)::date = o.period
      AND m.status = TRUE
     GROUP BY
@@ -115,36 +114,24 @@ WITH
 -- Финальный SELECT: объединяем loans_monthly и overdue_monthly
 -------------------------------------------------------------------------------
 SELECT
-  COALESCE(l.period, o.period)                                      AS period,
-  EXTRACT(YEAR FROM COALESCE(l.period, o.period))::INT              AS year,
-  EXTRACT(MONTH FROM COALESCE(l.period, o.period))::INT             AS month,
-  COALESCE(l.loan_amount_bucket, o.loan_amount_bucket)              AS loan_amount_bucket,
-
+  COALESCE(l.period, o.period) AS period,
+  EXTRACT(YEAR FROM COALESCE(l.period, o.period))::INT AS year,
+  EXTRACT(MONTH FROM COALESCE(l.period, o.period))::INT AS month,
+  COALESCE(l.loan_amount_bucket, o.loan_amount_bucket) AS loan_amount_bucket,
   -- Сколько ВСЕГО активных договоров (клиент+loan_name) было в этом месяце и bucket-е:
-  COALESCE(l.total_loans, 0)                                        AS total_loans,
-
+  COALESCE(l.total_loans, 0) AS total_loans,
   -- Сколько из них (тех же договоров) оказались просрочеными:
-  COALESCE(o.total_overdue_loans, 0)                                AS total_overdue_loans,
-
+  COALESCE(o.total_overdue_loans, 0) AS total_overdue_loans,
   -- Доля просроченных договоров в процентах (0 если total_loans = 0):
-  ROUND(
-    100.0
-    * COALESCE(o.total_overdue_loans, 0)
-    / NULLIF(COALESCE(l.total_loans, 0), 0),
-    2
-  )                                                                  AS pct_overdue_loans,
-
+  ROUND(100.0 * COALESCE(o.total_overdue_loans, 0) / NULLIF(COALESCE(l.total_loans, 0), 0), 2) AS pct_overdue_loans,
   -- Сумма всех выданных кредитов (loan_amount) в этом месяце и bucket-е:
-  COALESCE(l.sum_issued_loans, 0)                                   AS sum_issued_loans,
-
+  COALESCE(l.sum_issued_loans, 0) AS sum_issued_loans,
   -- Сумма всех просроченных фактических выплат в этом месяце и bucket-е:
-  COALESCE(o.sum_overdue_payments, 0)                               AS sum_overdue_payments
-
+  COALESCE(o.sum_overdue_payments, 0) AS sum_overdue_payments
 FROM loans_monthly AS l
 FULL OUTER JOIN overdue_monthly AS o
-  ON l.period             = o.period
+  ON l.period = o.period
  AND l.loan_amount_bucket = o.loan_amount_bucket
-
 ORDER BY
   period,
   loan_amount_bucket;
