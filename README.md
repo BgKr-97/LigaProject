@@ -24,7 +24,10 @@
 
 
 # Пример финального предоставления отчета через Power BI
-https://github.com/user-attachments/assets/37825e6b-4d0b-42bb-bd5e-7ce9e21fc9e3
+
+https://github.com/user-attachments/assets/5d2942e0-4359-4a59-8d8f-1bcac7a21d95
+
+
 
 
 # Подготовительные операции
