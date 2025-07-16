@@ -121,7 +121,11 @@ python main.py load --all
 **Предпочтительный** способ загрузки данных - инкрементный (по частям). Данный способ дает возможность ощутить периодическое обновление данных, как в реальных проектах.
 
 # Пример процесса загрузки данных
-![Image](https://github.com/user-attachments/assets/54f5a4db-a8ac-41f0-b53b-a9ddd90ea587)
+
+
+https://github.com/user-attachments/assets/7af5cba5-ea88-4d10-8d64-a5c2f46d0322
+
+
 
 # Демонстрация данных
 Демонстрация данных производится на основании PowerBI из таблицы data_mart, находящейся на слое mart, а также из представления (VIEW) vw_overdue_by_month_and_amount:
